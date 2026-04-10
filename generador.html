@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Generador de Links - Yin Yang Game</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f5f5f0; min-height: 100vh; padding: 24px 16px;
+  }
+  .container { max-width: 500px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 800; color: #1a1a1a; margin-bottom: 4px; }
+  .sub { font-size: 13px; color: #888; margin-bottom: 24px; }
+  .card { background: white; border-radius: 16px; padding: 20px; border: 1px solid #e8e8e3; margin-bottom: 16px; }
+  .label { display: block; font-size: 12px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .btn-group { display: flex; gap: 8px; margin-bottom: 20px; }
+  .btn-option { flex: 1; padding: 12px 16px; border-radius: 10px; border: 1px solid #e0e0db; background: white; color: #555; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.15s; text-align: center; }
+  .btn-option.active-dark { border: 2px solid #1a1a1a; background: #1a1a1a; color: white; }
+  .btn-option.active-yt { border: 2px solid #FF0000; background: #FF0000; color: white; }
+  .btn-option.active-tt { border: 2px solid #00F2EA; background: #00F2EA; color: white; }
+  input[type="text"] { width: 100%; padding: 14px 16px; border-radius: 10px; border: 1px solid #e0e0db; font-size: 15px; background: #fafaf7; outline: none; }
+  input[type="text"]:focus { border-color: #128C7E; }
+  .link-box { background: #f5f5f0; border-radius: 10px; padding: 12px 14px; font-size: 12px; font-family: monospace; color: #444; word-break: break-all; line-height: 1.5; border: 1px solid #e8e8e3; margin-top: 16px; }
+  .copy-btn { margin-top: 10px; width: 100%; padding: 14px; background: #1a1a1a; color: white; border: none; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+  .copy-btn.copied { background: #25D366; }
+  .info-card { background: white; border-radius: 14px; padding: 16px; border: 1px solid #e8e8e3; margin-bottom: 16px; }
+  .info-card p { font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 6px; }
+  .info-card p:last-child { margin-bottom: 0; }
+  .info-title { font-size: 13px; font-weight: 700; color: #1a1a1a; margin-bottom: 10px; }
+  .step-num { color: #25D366; font-weight: 700; }
+  .history-item { padding: 10px 0; border-bottom: 1px solid #f0f0eb; }
+  .history-item:last-child { border-bottom: none; }
+  .history-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; flex-wrap: wrap; }
+  .history-meta span { font-size: 11px; }
+  .history-name { font-size: 13px; font-weight: 600; color: #1a1a1a; margin-bottom: 2px; }
+  .history-link { font-size: 11px; font-family: monospace; color: #999; word-break: break-all; }
+  .footer { text-align: center; font-size: 11px; color: #bbb; margin-top: 20px; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Generador de Links</h1>
+  <p class="sub">Creá el link con UTM para cada video nuevo</p>
+
+  <div class="card">
+    <span class="label">¿Quién?</span>
+    <div class="btn-group" id="profile-group">
+      <button class="btn-option active-dark" data-value="cris" onclick="setProfile('cris')">Cristian</button>
+      <button class="btn-option" data-value="paul" onclick="setProfile('paul')">Paul</button>
+    </div>
+
+    <span class="label">¿Dónde se publica?</span>
+    <div class="btn-group" id="platform-group">
+      <button class="btn-option active-yt" data-value="youtube" onclick="setPlatform('youtube')">▶ YouTube</button>
+      <button class="btn-option" data-value="tiktok" onclick="setPlatform('tiktok')">♪ TikTok</button>
+    </div>
+
+    <span class="label">Nombre del video</span>
+    <input type="text" id="video-input" placeholder="Ej: Cómo iniciar conversaciones" oninput="updateLink()">
+
+    <div id="result" class="hidden">
+      <span class="label" style="margin-top:16px;">Tu link</span>
+      <div class="link-box" id="link-display"></div>
+      <button class="copy-btn" id="copy-btn" onclick="copyLink()">Copiar link</button>
+    </div>
+  </div>
+
+  <div class="info-card">
+    <p class="info-title">Cómo usarlo</p>
+    <p><span class="step-num">1.</span> Elegí quién (Cristian o Paul) y la plataforma</p>
+    <p><span class="step-num">2.</span> Escribí el nombre del video</p>
+    <p><span class="step-num">3.</span> Copiá el link y pegalo en la descripción del video</p>
+    <p style="color:#25D366;font-weight:600;">Cada clic en ese link se trackea automáticamente en Google Analytics</p>
+  </div>
+
+  <div id="history-card" class="info-card hidden">
+    <p class="info-title">Links generados</p>
+    <div id="history-list"></div>
+  </div>
+
+  <p class="footer">Yin Yang Game — Links con tracking automático</p>
+</div>
+
+<script>
+var DOMAIN = "wa-tracking.vercel.app";
+var profile = "cris";
+var platform = "youtube";
+var history = [];
+
+try {
+  var saved = JSON.parse(localStorage.getItem("link-history") || "[]");
+  if (Array.isArray(saved)) { history = saved; renderHistory(); }
+} catch(e) {}
+
+function slugify(text) {
+  return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+}
+
+function setProfile(p) {
+  profile = p;
+  var btns = document.querySelectorAll("#profile-group .btn-option");
+  btns.forEach(function(b) {
+    b.className = "btn-option" + (b.getAttribute("data-value") === p ? " active-dark" : "");
+  });
+  updateLink();
+}
+
+function setPlatform(p) {
+  platform = p;
+  var btns = document.querySelectorAll("#platform-group .btn-option");
+  btns.forEach(function(b) {
+    var v = b.getAttribute("data-value");
+    var cls = v === "youtube" ? "active-yt" : "active-tt";
+    b.className = "btn-option" + (v === p ? " " + cls : "");
+  });
+  updateLink();
+}
+
+function updateLink() {
+  var name = document.getElementById("video-input").value.trim();
+  var result = document.getElementById("result");
+  var display = document.getElementById("link-display");
+  var btn = document.getElementById("copy-btn");
+
+  if (!name) { result.className = "hidden"; return; }
+
+  var slug = slugify(name);
+  var link = "https://" + DOMAIN + "/?p=" + profile + "&utm_source=" + platform + "&utm_medium=bio&utm_campaign=" + profile + "&utm_content=" + slug;
+
+  display.textContent = link;
+  result.className = "";
+  btn.textContent = "Copiar link";
+  btn.className = "copy-btn";
+}
+
+function copyLink() {
+  var link = document.getElementById("link-display").textContent;
+  var name = document.getElementById("video-input").value.trim();
+  var btn = document.getElementById("copy-btn");
+
+  navigator.clipboard.writeText(link).then(function() {
+    btn.textContent = "✓ Copiado";
+    btn.className = "copy-btn copied";
+    setTimeout(function() { btn.textContent = "Copiar link"; btn.className = "copy-btn"; }, 2000);
+
+    var exists = history.find(function(h) { return h.link === link; });
+    if (!exists) {
+      history.unshift({
+        profile: profile,
+        platform: platform,
+        name: name,
+        link: link,
+        date: new Date().toLocaleDateString("es-AR")
+      });
+      try { localStorage.setItem("link-history", JSON.stringify(history.slice(0, 50))); } catch(e) {}
+      renderHistory();
+    }
+  });
+}
+
+function renderHistory() {
+  var card = document.getElementById("history-card");
+  var list = document.getElementById("history-list");
+  if (history.length === 0) { card.className = "info-card hidden"; return; }
+
+  card.className = "info-card";
+  var html = "";
+  history.forEach(function(h) {
+    var platColor = h.platform === "youtube" ? "#FF0000" : "#00F2EA";
+    var platIcon = h.platform === "youtube" ? "▶" : "♪";
+    var platLabel = h.platform === "youtube" ? "YouTube" : "TikTok";
+    var profLabel = h.profile === "cris" ? "Cristian" : "Paul";
+    html += '<div class="history-item">';
+    html += '<div class="history-meta"><span style="font-weight:700;color:' + platColor + '">' + platIcon + ' ' + platLabel + '</span><span style="color:#aaa">•</span><span style="color:#888">' + profLabel + '</span><span style="color:#aaa">•</span><span style="color:#aaa">' + h.date + '</span></div>';
+    html += '<p class="history-name">' + h.name + '</p>';
+    html += '<p class="history-link">' + h.link + '</p>';
+    html += '</div>';
+  });
+  list.innerHTML = html;
+}
+</script>
+
+</body>
+</html>
